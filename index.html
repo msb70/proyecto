@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ScanStock — Inventario Inteligente</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- html5-qrcode for barcode scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">✦</span>
+        <span class="brand-name">ScanStock</span>
+      </div>
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="scanner">
+          <svg viewBox="0 0 24 24"><path d="M4 6h2v12H4zm3 0h1v12H7zm2 0h2v12H9zm3 0h1v12h-1zm2 0h2v12h-2zm3 0h1v12h-1z"/><path d="M2 4v16h20V4H2zm18 14H4V6h16v12z"/></svg>
+          Escanear
+        </button>
+        <button class="tab-btn" data-tab="inventory">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+          Inventario
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main">
+
+    <!-- ====== TAB: SCANNER ====== -->
+    <section id="tab-scanner" class="tab-content active">
+
+      <!-- Camera Viewfinder -->
+      <div class="scanner-section">
+        <div class="viewfinder-wrap" id="viewfinder-wrap">
+          <div id="reader"></div>
+          <div class="scan-overlay">
+            <div class="scan-frame">
+              <span class="corner tl"></span>
+              <span class="corner tr"></span>
+              <span class="corner bl"></span>
+              <span class="corner br"></span>
+              <div class="scan-line"></div>
+            </div>
+          </div>
+          <p class="scan-hint">Apunta la cámara al código de barras</p>
+        </div>
+
+        <div class="scanner-controls">
+          <button class="btn btn-primary" id="btn-start-scan">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+            Iniciar Cámara
+          </button>
+          <button class="btn btn-ghost" id="btn-stop-scan" style="display:none">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+            Detener
+          </button>
+          <button class="btn btn-ghost" id="btn-manual">
+            <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+            Manual
+          </button>
+        </div>
+
+        <!-- Manual Input -->
+        <div class="manual-input" id="manual-input" style="display:none">
+          <div class="input-group">
+            <input type="text" id="manual-barcode" placeholder="Ingresa el código de barras..." inputmode="numeric" pattern="[0-9]*" />
+            <button class="btn btn-primary" id="btn-search-manual">Buscar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Search Status -->
+      <div class="search-status" id="search-status" style="display:none">
+        <div class="status-bar">
+          <div class="status-step" id="step-1">
+            <div class="step-dot"></div>
+            <span>Open Food Facts</span>
+          </div>
+          <div class="status-step" id="step-2">
+            <div class="step-dot"></div>
+            <span>UPC Item DB</span>
+          </div>
+          <div class="status-step" id="step-3">
+            <div class="step-dot"></div>
+            <span>Go UPC</span>
+          </div>
+        </div>
+        <p class="status-text" id="status-text">Buscando...</p>
+      </div>
+
+      <!-- Product Result Card -->
+      <div class="product-card" id="product-card" style="display:none">
+        <div class="product-header">
+          <div class="product-image-wrap">
+            <img id="product-img" src="" alt="Producto" style="display:none" />
+            <div class="product-img-placeholder" id="product-img-placeholder">
+              <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+            </div>
+          </div>
+          <div class="product-meta">
+            <span class="product-source" id="product-source">Open Food Facts</span>
+            <span class="product-barcode" id="product-barcode-display"></span>
+          </div>
+        </div>
+
+        <div class="product-body">
+          <h2 class="product-name" id="product-name">—</h2>
+          <p class="product-brand" id="product-brand"></p>
+          <p class="product-desc" id="product-desc"></p>
+
+          <div class="product-tags" id="product-tags"></div>
+
+          <!-- Kosher Badge -->
+          <div class="kosher-badge" id="kosher-badge" style="display:none">
+            <span class="kosher-icon">✡</span>
+            <span>Certificación Kosher</span>
+          </div>
+        </div>
+
+        <!-- Add to Inventory -->
+        <div class="add-inventory-panel">
+          <h3>Agregar al Inventario</h3>
+          <div class="inventory-form">
+            <div class="form-field">
+              <label>Cantidad</label>
+              <div class="qty-control">
+                <button class="qty-btn" id="qty-minus">−</button>
+                <input type="number" id="qty-input" value="1" min="1" max="9999" />
+                <button class="qty-btn" id="qty-plus">+</button>
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Costo Unitario (opcional)</label>
+              <div class="input-prefix">
+                <span>$</span>
+                <input type="number" id="cost-input" placeholder="0.00" min="0" step="0.01" />
+              </div>
+            </div>
+            <div class="form-field">
+              <label>Nota (opcional)</label>
+              <input type="text" id="note-input" placeholder="Observación..." maxlength="100" />
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary btn-full" id="btn-add-inventory">
+              <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+              Guardar en Inventario
+            </button>
+            <button class="btn btn-ghost" id="btn-scan-again">Escanear otro</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Not Found -->
+      <div class="not-found" id="not-found" style="display:none">
+        <div class="not-found-icon">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </div>
+        <p>Producto no encontrado en ninguna base de datos.</p>
+        <p class="not-found-code" id="not-found-code"></p>
+        <div class="not-found-actions">
+          <button class="btn btn-primary" id="btn-add-manual-product">Agregar manualmente</button>
+          <button class="btn btn-ghost" id="btn-scan-again-2">Escanear otro</button>
+        </div>
+      </div>
+
+      <!-- Manual Add Form (shown when product not found) -->
+      <div class="manual-add-form" id="manual-add-form" style="display:none">
+        <h3>Agregar Producto Manualmente</h3>
+        <div class="inventory-form">
+          <div class="form-field">
+            <label>Nombre del Producto *</label>
+            <input type="text" id="manual-name" placeholder="Nombre del producto..." required />
+          </div>
+          <div class="form-field">
+            <label>Marca</label>
+            <input type="text" id="manual-brand" placeholder="Marca..." />
+          </div>
+          <div class="form-field">
+            <label>Descripción</label>
+            <input type="text" id="manual-description" placeholder="Descripción..." />
+          </div>
+          <div class="form-field">
+            <label>Cantidad</label>
+            <div class="qty-control">
+              <button class="qty-btn" id="manual-qty-minus">−</button>
+              <input type="number" id="manual-qty-input" value="1" min="1" max="9999" />
+              <button class="qty-btn" id="manual-qty-plus">+</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Costo Unitario (opcional)</label>
+            <div class="input-prefix">
+              <span>$</span>
+              <input type="number" id="manual-cost-input" placeholder="0.00" min="0" step="0.01" />
+            </div>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-full" id="btn-save-manual">
+            Guardar Producto
+          </button>
+          <button class="btn btn-ghost" id="btn-cancel-manual">Cancelar</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ====== TAB: INVENTORY ====== -->
+    <section id="tab-inventory" class="tab-content">
+
+      <div class="inventory-header">
+        <div class="inventory-stats">
+          <div class="stat-card">
+            <span class="stat-value" id="stat-items">0</span>
+            <span class="stat-label">Productos</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="stat-units">0</span>
+            <span class="stat-label">Unidades</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="stat-value">$0</span>
+            <span class="stat-label">Valor Total</span>
+          </div>
+        </div>
+
+        <div class="inventory-tools">
+          <div class="search-bar">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" id="inventory-search" placeholder="Buscar producto..." />
+          </div>
+          <button class="btn btn-ghost btn-icon" id="btn-export" title="Exportar CSV">
+            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon btn-danger" id="btn-clear-inventory" title="Limpiar inventario">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Inventory List -->
+      <div class="inventory-list" id="inventory-list">
+        <div class="empty-inventory" id="empty-inventory">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24"><path d="M20 6h-2.18c.07-.44.18-.88.18-1.36C18 2.51 15.49 0 12.36 0c-1.76 0-3.32.78-4.36 2.01L12 6H7.82l-1-1.82L5.18 6H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5 2.5l3 3-3 3V13h-4v-2h4V8.5z"/></svg>
+          </div>
+          <p>El inventario está vacío</p>
+          <p>Escanea productos para comenzar</p>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <!-- ===== TOAST NOTIFICATIONS ===== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- ===== CONFIRM DIALOG ===== -->
+  <div class="dialog-overlay" id="dialog-overlay" style="display:none">
+    <div class="dialog">
+      <p id="dialog-msg"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" id="dialog-cancel">Cancelar</button>
+        <button class="btn btn-danger" id="dialog-confirm">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/inventory.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
