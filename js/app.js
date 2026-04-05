@@ -8,8 +8,8 @@
   // -------------------------------------------------------
   // State
   // -------------------------------------------------------
-  let scanner       = null;
-  let scannerActive = false;
+  let scanner        = null;
+  let scannerActive  = false;
   let currentBarcode = '';
   let currentProduct = null;
 
@@ -17,18 +17,17 @@
   // DOM helpers
   // -------------------------------------------------------
   const $ = id => document.getElementById(id);
-  const show = id => { const el = $(id); if (el) el.style.display = ''; };
   const hide = id => { const el = $(id); if (el) el.style.display = 'none'; };
 
-  function showEl(id, displayType = '') {
+  function showEl(id, displayType = 'block') {
     const el = $(id);
-    if (el) el.style.display = displayType || 'block';
+    if (el) el.style.display = displayType;
   }
 
   // -------------------------------------------------------
   // Toast notifications
   // -------------------------------------------------------
-  function toast(msg, type = 'default', duration = 3000) {
+  function toast(msg, type = 'default', duration = 3200) {
     const icons = { success: '✓', error: '✕', info: 'ℹ', default: '✦' };
     const container = $('toast-container');
     const el = document.createElement('div');
@@ -37,7 +36,7 @@
     container.appendChild(el);
     setTimeout(() => {
       el.classList.add('hiding');
-      el.addEventListener('animationend', () => el.remove());
+      el.addEventListener('animationend', () => el.remove(), { once: true });
     }, duration);
   }
 
@@ -77,10 +76,12 @@
     $('btn-start-scan').addEventListener('click', startScanner);
     $('btn-stop-scan').addEventListener('click', stopScanner);
     $('btn-manual').addEventListener('click', toggleManualInput);
+
     $('btn-search-manual').addEventListener('click', () => {
       const code = $('manual-barcode').value.trim();
       if (code) searchBarcode(code);
     });
+
     $('manual-barcode').addEventListener('keydown', e => {
       if (e.key === 'Enter') {
         const code = $('manual-barcode').value.trim();
@@ -91,8 +92,6 @@
 
   function startScanner() {
     if (scannerActive) return;
-
-    // Reset UI
     hideResults();
 
     scanner = new Html5Qrcode('reader');
@@ -116,12 +115,11 @@
       { facingMode: 'environment' },
       config,
       onScanSuccess,
-      () => {}  // suppress per-frame errors
+      () => {}
     ).then(() => {
       scannerActive = true;
       $('btn-start-scan').style.display = 'none';
       showEl('btn-stop-scan', 'inline-flex');
-      $('viewfinder-wrap').classList.add('active-scan');
     }).catch(err => {
       console.error('Camera error:', err);
       toast('No se pudo acceder a la cámara. Usa el modo manual.', 'error');
@@ -139,7 +137,7 @@
   }
 
   function onScanSuccess(decodedText) {
-    if (decodedText === currentBarcode) return; // debounce same code
+    if (decodedText === currentBarcode) return;
     stopScanner();
     searchBarcode(decodedText);
   }
@@ -162,7 +160,6 @@
     hide('not-found');
     hide('manual-add-form');
     hide('search-status');
-    // Reset steps
     [1, 2, 3].forEach(n => {
       const step = $(`step-${n}`);
       if (step) step.className = 'status-step';
@@ -176,7 +173,6 @@
     hideResults();
     hide('manual-input');
 
-    // Show search status
     showEl('search-status', 'block');
     $('status-text').textContent = 'Iniciando búsqueda...';
 
@@ -188,7 +184,7 @@
         $('status-text').textContent = `Buscando en ${label}...`;
       } else if (state === 'success') {
         $('status-text').textContent = `Encontrado en ${label} ✓`;
-      } else if (state === 'fail') {
+      } else {
         $('status-text').textContent = `No encontrado en ${label}, probando siguiente...`;
       }
     }
@@ -206,9 +202,9 @@
   // Product display
   // -------------------------------------------------------
   function showProductCard(barcode, product) {
-    // Image
-    const img = $('product-img');
+    const img         = $('product-img');
     const placeholder = $('product-img-placeholder');
+
     if (product.image) {
       img.src = product.image;
       img.style.display = 'block';
@@ -222,36 +218,27 @@
       placeholder.style.display = 'flex';
     }
 
-    // Meta
     $('product-source').textContent = product.source;
     $('product-barcode-display').textContent = barcode;
+    $('product-name').textContent   = product.name;
 
-    // Body
-    $('product-name').textContent = product.name;
-    $('product-brand').textContent = product.brand;
-    $('product-brand').style.display = product.brand ? '' : 'none';
-    $('product-desc').textContent = product.description;
-    $('product-desc').style.display = product.description ? '' : 'none';
+    $('product-brand').textContent    = product.brand;
+    $('product-brand').style.display  = product.brand ? '' : 'none';
+    $('product-desc').textContent     = product.description;
+    $('product-desc').style.display   = product.description ? '' : 'none';
 
-    // Tags
     const tagsEl = $('product-tags');
     tagsEl.innerHTML = '';
     product.categories.forEach(cat => {
       const tag = document.createElement('span');
-      tag.className = 'tag';
+      tag.className   = 'tag';
       tag.textContent = cat;
       tagsEl.appendChild(tag);
     });
 
-    // Kosher badge
-    if (product.isKosher) {
-      showEl('kosher-badge', 'flex');
-    } else {
-      hide('kosher-badge');
-    }
+    product.isKosher ? showEl('kosher-badge', 'flex') : hide('kosher-badge');
 
-    // Reset form
-    $('qty-input').value = 1;
+    $('qty-input').value  = 1;
     $('cost-input').value = '';
     $('note-input').value = '';
 
@@ -270,16 +257,14 @@
     function bindQty(minusId, plusId, inputId) {
       $(minusId).addEventListener('click', () => {
         const inp = $(inputId);
-        const v = parseInt(inp.value, 10) || 1;
-        inp.value = Math.max(1, v - 1);
+        inp.value = Math.max(1, (parseInt(inp.value, 10) || 1) - 1);
       });
       $(plusId).addEventListener('click', () => {
         const inp = $(inputId);
-        const v = parseInt(inp.value, 10) || 1;
-        inp.value = Math.min(9999, v + 1);
+        inp.value = Math.min(9999, (parseInt(inp.value, 10) || 1) + 1);
       });
     }
-    bindQty('qty-minus', 'qty-plus', 'qty-input');
+    bindQty('qty-minus',        'qty-plus',        'qty-input');
     bindQty('manual-qty-minus', 'manual-qty-plus', 'manual-qty-input');
   }
 
@@ -287,35 +272,41 @@
   // Add to inventory
   // -------------------------------------------------------
   function initInventoryActions() {
-    // Add from product card
-    $('btn-add-inventory').addEventListener('click', () => {
-      if (!currentProduct && !currentBarcode) return;
-      const qty  = parseInt($('qty-input').value, 10)   || 1;
-      const cost = parseFloat($('cost-input').value)    || 0;
-      const note = $('note-input').value.trim();
+    // Save scanned product
+    $('btn-add-inventory').addEventListener('click', async () => {
+      if (!currentProduct) return;
 
-      Inventory.addEntry({
-        barcode:     currentBarcode,
-        name:        currentProduct.name,
-        brand:       currentProduct.brand,
-        description: currentProduct.description,
-        image:       currentProduct.image,
-        source:      currentProduct.source,
-        categories:  currentProduct.categories,
-        labels:      currentProduct.labels,
-        isKosher:    currentProduct.isKosher,
-        quantity:    qty,
-        cost,
-        note,
-      });
+      const btn = $('btn-add-inventory');
+      btn.disabled = true;
 
-      toast(`"${currentProduct.name}" agregado al inventario`, 'success');
-      updateStats();
-      hideResults();
-      resetScannerView();
+      try {
+        await Inventory.addEntry({
+          barcode:     currentBarcode,
+          name:        currentProduct.name,
+          brand:       currentProduct.brand,
+          description: currentProduct.description,
+          image:       currentProduct.image,
+          source:      currentProduct.source,
+          categories:  currentProduct.categories,
+          labels:      currentProduct.labels,
+          isKosher:    currentProduct.isKosher,
+          quantity:    parseInt($('qty-input').value, 10)  || 1,
+          cost:        parseFloat($('cost-input').value)   || 0,
+          note:        $('note-input').value.trim(),
+        });
+
+        toast(`"${currentProduct.name}" guardado en inventario`, 'success');
+        await updateStats();
+        hideResults();
+        resetScannerView();
+      } catch (err) {
+        toast('Error al guardar: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
     });
 
-    // Scan again
+    // Scan again (two buttons)
     ['btn-scan-again', 'btn-scan-again-2'].forEach(id => {
       $(id).addEventListener('click', () => {
         hideResults();
@@ -325,80 +316,84 @@
       });
     });
 
-    // Not found → add manually
+    // Not found → manual entry
     $('btn-add-manual-product').addEventListener('click', () => {
       hide('not-found');
       hide('search-status');
       showEl('manual-add-form', 'block');
     });
 
-    // Save manual product
-    $('btn-save-manual').addEventListener('click', () => {
+    // Save manual entry
+    $('btn-save-manual').addEventListener('click', async () => {
       const name = $('manual-name').value.trim();
       if (!name) { toast('El nombre del producto es requerido', 'error'); return; }
 
-      const qty  = parseInt($('manual-qty-input').value, 10) || 1;
-      const cost = parseFloat($('manual-cost-input').value)  || 0;
+      const btn = $('btn-save-manual');
+      btn.disabled = true;
 
-      Inventory.addEntry({
-        barcode:     currentBarcode,
-        name,
-        brand:       $('manual-brand').value.trim(),
-        description: $('manual-description').value.trim(),
-        source:      'Manual',
-        quantity:    qty,
-        cost,
-      });
+      try {
+        await Inventory.addEntry({
+          barcode:     currentBarcode,
+          name,
+          brand:       $('manual-brand').value.trim(),
+          description: $('manual-description').value.trim(),
+          source:      'Manual',
+          quantity:    parseInt($('manual-qty-input').value, 10) || 1,
+          cost:        parseFloat($('manual-cost-input').value)  || 0,
+        });
 
-      toast(`"${name}" guardado en inventario`, 'success');
-      updateStats();
+        toast(`"${name}" guardado en inventario`, 'success');
+        await updateStats();
 
-      // Clear form
-      ['manual-name', 'manual-brand', 'manual-description', 'manual-cost-input'].forEach(id => {
-        $(id).value = '';
-      });
-      $('manual-qty-input').value = 1;
-      hide('manual-add-form');
-      currentBarcode = '';
-      resetScannerView();
+        ['manual-name','manual-brand','manual-description','manual-cost-input']
+          .forEach(id => { $(id).value = ''; });
+        $('manual-qty-input').value = 1;
+        hide('manual-add-form');
+        currentBarcode = '';
+        resetScannerView();
+      } catch (err) {
+        toast('Error al guardar: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
     });
 
-    $('btn-cancel-manual').addEventListener('click', () => {
-      hide('manual-add-form');
-    });
+    $('btn-cancel-manual').addEventListener('click', () => { hide('manual-add-form'); });
   }
 
   function resetScannerView() {
-    // Re-show scanner start button if camera not active
-    if (!scannerActive) {
-      $('btn-start-scan').style.display = '';
-    }
+    if (!scannerActive) $('btn-start-scan').style.display = '';
   }
 
   // -------------------------------------------------------
   // Inventory render
   // -------------------------------------------------------
-  function renderInventory(query = '') {
-    updateStats();
-    const items = query ? Inventory.filter(query) : Inventory.getAll();
+  async function renderInventory(query = '') {
+    await updateStats();
+
+    let items;
+    try {
+      items = query ? await Inventory.filter(query) : await Inventory.getAll();
+    } catch {
+      toast('Error al cargar el inventario', 'error');
+      return;
+    }
+
     const list  = $('inventory-list');
     const empty = $('empty-inventory');
 
-    // Remove old items (keep empty placeholder)
     list.querySelectorAll('.inv-item').forEach(el => el.remove());
 
     if (items.length === 0) {
       empty.style.display = '';
       return;
     }
-
     empty.style.display = 'none';
 
     items.forEach((item, idx) => {
-      const el = document.createElement('div');
-      el.className = 'inv-item';
-      el.dataset.id = item.id;
-
+      const el       = document.createElement('div');
+      el.className   = 'inv-item';
+      el.dataset.id  = item.id;
       const totalVal = (item.quantity * item.cost).toFixed(2);
       const dateStr  = new Date(item.createdAt).toLocaleDateString('es-VE', { day: '2-digit', month: 'short' });
 
@@ -407,9 +402,9 @@
         <div class="inv-item-body">
           <div class="inv-item-name">${escHtml(item.name)}</div>
           <div class="inv-item-sub">
-            ${item.brand ? `<span>🏷 ${escHtml(item.brand)}</span>` : ''}
+            ${item.brand   ? `<span>🏷 ${escHtml(item.brand)}</span>` : ''}
             ${item.barcode ? `<span>📊 ${escHtml(item.barcode)}</span>` : ''}
-            ${item.cost > 0 ? `<span>$ ${item.cost.toFixed(2)} c/u · Total: $${totalVal}</span>` : ''}
+            ${item.cost > 0 ? `<span>$${item.cost.toFixed(2)} c/u · Total $${totalVal}</span>` : ''}
             ${item.isKosher ? `<span style="color:#7dc45f">✡ Kosher</span>` : ''}
             <span>📅 ${dateStr}</span>
           </div>
@@ -426,13 +421,15 @@
         </div>
       `;
 
-      // Delete action
       el.querySelector('[data-action="delete"]').addEventListener('click', async () => {
         const ok = await confirm(`¿Eliminar "${item.name}" del inventario?`);
-        if (ok) {
-          Inventory.removeEntry(item.id);
+        if (!ok) return;
+        try {
+          await Inventory.removeEntry(item.id);
           renderInventory($('inventory-search').value);
           toast(`"${item.name}" eliminado`, 'info');
+        } catch {
+          toast('Error al eliminar', 'error');
         }
       });
 
@@ -440,37 +437,46 @@
     });
   }
 
-  function updateStats() {
-    const { totalItems, totalUnits, totalValue } = Inventory.getStats();
-    $('stat-items').textContent  = totalItems;
-    $('stat-units').textContent  = totalUnits;
-    $('stat-value').textContent  = totalValue > 0
-      ? `$${totalValue.toFixed(totalValue < 1000 ? 2 : 0)}`
-      : '$0';
+  async function updateStats() {
+    try {
+      const { totalItems, totalUnits, totalValue } = await Inventory.getStats();
+      $('stat-items').textContent = totalItems;
+      $('stat-units').textContent = totalUnits;
+      $('stat-value').textContent = totalValue > 0
+        ? `$${Number(totalValue).toFixed(totalValue < 1000 ? 2 : 0)}`
+        : '$0';
+    } catch { /* silently ignore */ }
   }
 
+  // -------------------------------------------------------
+  // Inventory tab controls
+  // -------------------------------------------------------
   function initInventoryTab() {
-    // Search
+    let searchTimer;
     $('inventory-search').addEventListener('input', e => {
-      renderInventory(e.target.value);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => renderInventory(e.target.value), 280);
     });
 
-    // Export CSV
     $('btn-export').addEventListener('click', () => {
-      const ok = Inventory.exportCSV();
-      if (ok) toast('Inventario exportado como CSV', 'success');
-      else    toast('El inventario está vacío', 'info');
+      Inventory.exportCSV();
+      toast('Descargando inventario en CSV...', 'success');
     });
 
-    // Clear all
     $('btn-clear-inventory').addEventListener('click', async () => {
-      const { totalItems } = Inventory.getStats();
-      if (totalItems === 0) { toast('El inventario ya está vacío', 'info'); return; }
-      const ok = await confirm(`¿Limpiar todo el inventario? (${totalItems} productos)`);
-      if (ok) {
-        Inventory.clearAll();
+      let stats;
+      try { stats = await Inventory.getStats(); } catch { return; }
+
+      if (stats.totalItems === 0) { toast('El inventario ya está vacío', 'info'); return; }
+
+      const ok = await confirm(`¿Limpiar todo el inventario? (${stats.totalItems} productos)`);
+      if (!ok) return;
+      try {
+        await Inventory.clearAll();
         renderInventory();
         toast('Inventario limpiado', 'info');
+      } catch {
+        toast('Error al limpiar el inventario', 'error');
       }
     });
   }
@@ -496,7 +502,7 @@
     initInventoryActions();
     initInventoryTab();
     updateStats();
-    console.log('✦ ScanStock ready');
+    console.log('✦ Bodegón Acme — ScanStock listo');
   }
 
   document.addEventListener('DOMContentLoaded', init);
